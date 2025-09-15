@@ -18,16 +18,19 @@ dependencies = [
   "numpy>=1.23.0",
   "requests>=2.28.0"
 ]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+]
 
 [project.urls]
 Homepage = "https://github.com/UnniAmbady/Hypersonic_EDA"
 Issues   = "https://github.com/UnniAmbady/Hypersonic_EDA/issues"
 
 # Console command: `hypersonic`
-# (Points to your existing module; no cli.py required)
 [project.scripts]
 hypersonic = "hypersonic.notebook_builder:main"
 
-# Ensure the package folder is included
+# Include the package folder in the wheel
 [tool.setuptools.packages.find]
 include = ["hypersonic*"]
