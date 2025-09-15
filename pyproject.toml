@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hypersonic"                # PyPI project name
+name = "hypersonic"
 version = "0.1.0"
 description = "Generate structured EDA notebooks from datasets."
 readme = "README.md"
@@ -21,11 +21,13 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/UnniAmbady/Hypersonic_EDA"
-Issues = "https://github.com/UnniAmbady/Hypersonic_EDA/issues"
+Issues   = "https://github.com/UnniAmbady/Hypersonic_EDA/issues"
 
+# Console command: `hypersonic`
+# (Points to your existing module; no cli.py required)
 [project.scripts]
-hypersonic = "hypersonic.cli:main"
+hypersonic = "hypersonic.notebook_builder:main"
 
-# Make sure the package folder is picked up
+# Ensure the package folder is included
 [tool.setuptools.packages.find]
 include = ["hypersonic*"]
