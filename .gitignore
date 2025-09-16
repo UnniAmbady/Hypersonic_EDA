@@ -1,11 +1,41 @@
-
+# --- Python basics ---
 __pycache__/
-*.pyc
-.pytest_cache/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# --- Virtual environments ---
 .venv/
-.env
-dist/
-build/
-*.egg-info/
-.DS_Store
+venv/
+env/
+ENV/
+.venv-wheel/
+Lib/
+Scripts/
+bin/
+Include/
+pyvenv.cfg
+
+# --- Jupyter ---
 .ipynb_checkpoints/
+
+# --- Build & packaging ---
+build/
+dist/
+*.egg-info/
+.eggs/
+*.manifest
+*.spec
+
+# --- Logs & temp files ---
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- IDE / editor files ---
+.vscode/
+.idea/
+*.iml
