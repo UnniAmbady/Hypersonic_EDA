@@ -13,7 +13,7 @@ Creates a structured .ipynb with:
   - For each numeric feature:      (1) plot cell, (2) table cell (summary stats)
 
 Usage:
-  python hypersonic_eda.py --input INPUT --target TARGET [--table TABLE] [--max-cat 30] [--max-num 30] [--output out.ipynb]
+  python hy.py --input INPUT [--target TARGET] [--table TABLE] [--max-cat 30] [--max-num 30] [--output eda.ipynb]
 
 """
 
@@ -440,7 +440,7 @@ def main():
     parser.add_argument("--target", default=None, help="Target column (optional)")
     parser.add_argument("--max-cat", type=int, default=30, help="Max categorical features to include")
     parser.add_argument("--max-num", type=int, default=30, help="Max numeric features to include")
-    parser.add_argument("--output", default="hypersonic_eda.ipynb", help="Output notebook path (.ipynb)")
+    parser.add_argument("--output", default="eda.ipynb", help="Output notebook path (.ipynb)")
     args = parser.parse_args()
 
     # Light preview load to infer types & pick feature lists

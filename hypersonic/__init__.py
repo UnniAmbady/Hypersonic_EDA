@@ -1,5 +1,9 @@
-from . import notebook_builder
-from .notebook_builder import build_notebook, main
 
-__all__ = ["notebook_builder", "build_notebook", "main"]
-__version__ = "0.1.0" #dated 15 Oct 2025
+# hypersonic/__init__.py
+from .hy import main as hy  
+
+__all__ = ["hy"]
+__version__ = "0.1.0" # dated 17 Oct 2025
+
+
+

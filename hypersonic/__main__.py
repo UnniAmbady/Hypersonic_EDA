@@ -1,5 +1,5 @@
 # hypersonic/cli.py
-from .notebook_builder import main
+from .hy import main
 
 if __name__ == "__main__":
     main()

@@ -27,9 +27,10 @@ classifiers = [
 Homepage = "https://github.com/UnniAmbady/Hypersonic_EDA"
 Issues   = "https://github.com/UnniAmbady/Hypersonic_EDA/issues"
 
-# Console command: `hypersonic`
+# Console command: `hy`
 [project.scripts]
-hypersonic = "hypersonic.notebook_builder:main"
+hy = "hypersonic.hy:main"
+
 
 # Include the package folder in the wheel
 [tool.setuptools.packages.find]
