@@ -11,15 +11,16 @@ Creates a structured .ipynb with:
   - Helper plotting functions (categorical & numeric)
   - For each categorical feature:  (1) plot cell, (2) table cell (value_counts)
   - For each numeric feature:      (1) plot cell, (2) table cell (summary stats)
+  - Target analysis (only when --target is provided; supports multiple targets)
 
 Usage:
-  python hy.py --input INPUT [--target TARGET] [--table TABLE] [--max-cat 30] [--max-num 30] [--output eda.ipynb]
-
+  python hy.py --input INPUT [--target "col1, col2; col3"] [--table TABLE] [--max-cat 30] [--max-num 30] [--output eda.ipynb]
 """
 
 import argparse
 import io
 import os
+import re
 import sys
 import textwrap
 from datetime import datetime
@@ -59,6 +60,21 @@ def infer_feature_types(df: pd.DataFrame, max_unique_for_categorical: int = 30):
             categorical_cols.append(c)
     return categorical_cols, numeric_cols
 
+def _parse_targets(arg: Optional[str]) -> List[str]:
+    """Split --target on comma/semicolon, trim, drop empties, preserve order, dedupe."""
+    if not arg:
+        return []
+    parts = re.split(r'[;,]', arg)
+    seen, out = set(), []
+    for p in parts:
+        t = p.strip()
+        if not t:
+            continue
+        if t not in seen:
+            seen.add(t)
+            out.append(t)
+    return out
+
 
 # ------------------------------------------------------------
 # Notebook cell helpers
@@ -87,7 +103,7 @@ def add_section(nb, title: str, anchor: Optional[str] = None):
 def build_notebook(
     input_source: str,
     output_path: str,
-    target: Optional[str],
+    targets: List[str],
     table: Optional[str],
     features_categorical: List[str],
     features_numeric: List[str]
@@ -103,16 +119,17 @@ def build_notebook(
         - [Helper Functions](#helpers)
         - [Categorical Features](#categorical)
         - [Numeric Features](#numeric)
+        - [Target analysis](#target-analysis)
         - [Notes](#notes)
         """
     )
+    targets_label = ", ".join(targets) if targets else "—"
     meta = textwrap.dedent(
         f"""
         **Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-        
+
         **Source:** `{_esc(input_source)}`
-        
-        **Target (if any):** `{_esc(target or '—')}`  
+        **Target (if any):** `{_esc(targets_label)}`
         **Table (SQLite .db):** `{_esc(table or 'auto')}`
         """
     )
@@ -135,7 +152,6 @@ TABLE = r"""{_esc(table or "")}""" or None
 
 import os, io, tempfile, sqlite3
 from contextlib import closing
-
 import pandas as pd
 
 def _is_url(path: str) -> bool:
@@ -189,8 +205,7 @@ df.head()
 '''
     add_code(nb, loader_code)
 
-    # ---------------- NEW: Stats + Cleaning + Typo-check guidance + Unique values ----------------
-    # 1) stst() helper then print stst(df).T
+    # ---------------- Stats + Cleaning + Typo-check guidance + Unique values ----------------
     add_code(
         nb,
         textwrap.dedent(
@@ -215,7 +230,6 @@ df.head()
         ).strip()
     )
 
-    # 2) INSERTED CLEANING CELL (uses df)
     add_code(
         nb,
         textwrap.dedent(
@@ -235,10 +249,8 @@ df.head()
         ).strip()
     )
 
-    # 3) Your requested Markdown reminder
     add_md(nb, "### Carefully check and correct the Typo errors in Catagory Text.")
 
-    # 4) One cell per categorical feature to print unique values + count
     if features_categorical:
         for _feat in features_categorical:
             add_code(
@@ -255,7 +267,6 @@ df.head()
 
                     print("Feature:", {_esc(_feat)!r})
                     print("uv_count:", _ser.nunique(dropna=True))
-                    # show sorted unique values (excluding explicit 'nan' string)
                     _vals = sorted([v for v in _ser.dropna().unique() if str(v).strip().lower() != "nan"])
                     print(_vals)
 
@@ -266,7 +277,7 @@ df.head()
     else:
         add_md(nb, "_No categorical text features detected for unique-value listing._")
 
-    # ---------------- Helper Functions Cell ----------------
+    # ---------------- Helper Functions ----------------
     add_section(nb, "Helper Functions", anchor="helpers")
     helpers = r'''\
 # Plotting & table helpers — one figure per call, followed by table cells elsewhere.
@@ -276,6 +287,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 SAFE_NA = "<NA>"  # ASCII placeholder to avoid glyph warnings
+MAROON = "maroon"
 
 def _safe_title(s):
     try:
@@ -284,17 +296,16 @@ def _safe_title(s):
         return "feature"
 
 def plot_categorical(df: pd.DataFrame, feature_name: str, top_n: int = 30):
-    """Bar chart of value counts (top_n). No object fillna; avoids FutureWarning."""
+    """Bar chart of value counts (top_n)."""
     if feature_name not in df.columns:
         print(f"[warn] {feature_name} not in dataframe.")
         return
     s = df[feature_name]
-    # Replace NaNs safely without .fillna on object dtype
     s_plot = s.astype(str).where(~pd.isna(s), other=SAFE_NA)
     counts_show = s_plot.value_counts(dropna=False).head(top_n)
 
     plt.figure(figsize=(10, 4))
-    ax = counts_show.iloc[::-1].plot(kind="barh")  # horizontal for long labels
+    ax = counts_show.iloc[::-1].plot(kind="barh")
     ax.set_title(f"Categorical: {_safe_title(feature_name)} (top {min(top_n, len(counts_show))})")
     ax.set_xlabel("Count")
     ax.set_ylabel("Category")
@@ -302,11 +313,11 @@ def plot_categorical(df: pd.DataFrame, feature_name: str, top_n: int = 30):
     plt.show()
 
 def categorical_table(df: pd.DataFrame, feature_name: str, normalize: bool = True, top_n: int = 50) -> pd.DataFrame:
-    """Returns value counts table with counts & percents. Avoids .fillna on object dtype."""
+    """Value counts table with counts & percents."""
     if feature_name not in df.columns:
         return pd.DataFrame()
     s = df[feature_name].astype("object")
-    series = s.where(~pd.isna(s), other=SAFE_NA)   # replaces fillna(...)
+    series = s.where(~pd.isna(s), other=SAFE_NA)
     counts = series.value_counts(dropna=False)
     perc = series.value_counts(dropna=False, normalize=True) * 100.0
     out = pd.DataFrame({"count": counts, "percent": perc}).reset_index()
@@ -329,7 +340,6 @@ def plot_numeric(df: pd.DataFrame, feature_name: str, bins="auto"):
     ax.set_title(f"Numeric: {_safe_title(feature_name)}")
     ax.set_xlabel(feature_name)
     ax.set_ylabel("Frequency")
-    # reference lines
     mean_v, med_v = float(s.mean()), float(s.median())
     ax.axvline(mean_v, linestyle="--", linewidth=1)
     ax.axvline(med_v, linestyle=":", linewidth=1)
@@ -343,7 +353,6 @@ def numeric_table(df: pd.DataFrame, feature_name: str) -> pd.DataFrame:
         return pd.DataFrame()
     s = pd.to_numeric(df[feature_name], errors="coerce")
     desc = s.describe(percentiles=[0.05, 0.25, 0.5, 0.75, 0.95]).to_frame().T
-    # IQR outlier cutoffs
     q1, q3 = s.quantile(0.25), s.quantile(0.75)
     iqr = q3 - q1
     lo = q1 - 1.5 * iqr
@@ -355,6 +364,53 @@ def numeric_table(df: pd.DataFrame, feature_name: str) -> pd.DataFrame:
         n_outliers=((s < lo) | (s > hi)).sum()
     )
     return out
+
+# ---------- Target-aware helpers (NEW) ----------
+
+def plot_target_categorical(df: pd.DataFrame, target_col: str, top_n: int = 30):
+    """Plot distribution of a categorical target (maroon)."""
+    if target_col not in df.columns:
+        print(f"[warn] target {target_col} not in dataframe.")
+        return
+    s = df[target_col].astype("object").where(~pd.isna(df[target_col]), other=SAFE_NA)
+    counts = s.value_counts(dropna=False).head(top_n)
+    plt.figure(figsize=(10, 4))
+    ax = counts.plot(kind="bar", color=MAROON)
+    ax.set_title(f"Target distribution: {target_col}")
+    ax.set_xlabel(target_col)
+    ax.set_ylabel("Count")
+    plt.tight_layout()
+    plt.show()
+
+def target_categorical_table(df: pd.DataFrame, target_col: str) -> pd.DataFrame:
+    """Counts and % for a categorical target."""
+    s = df[target_col].astype("object").where(~pd.isna(df[target_col]), other=SAFE_NA)
+    vc = s.value_counts(dropna=False)
+    pct = s.value_counts(dropna=False, normalize=True) * 100.0
+    out = pd.DataFrame({"count": vc, "percent": pct}).reset_index()
+    out.columns = [target_col, "count", "percent"]
+    out["percent"] = out["percent"].round(2)
+    return out
+
+def plot_target_numeric(df: pd.DataFrame, target_col: str, bins="auto"):
+    """Histogram of numeric target (maroon)."""
+    s = pd.to_numeric(df[target_col], errors="coerce").dropna()
+    if s.empty:
+        print(f"[warn] target {target_col} has no numeric data after coercion.")
+        return
+    plt.figure(figsize=(10, 4))
+    ax = plt.gca()
+    ax.hist(s, bins=bins, color=MAROON)
+    ax.set_title(f"Target distribution: {target_col}")
+    ax.set_xlabel(target_col)
+    ax.set_ylabel("Frequency")
+    plt.tight_layout()
+    plt.show()
+
+def target_numeric_table(df: pd.DataFrame, target_col: str) -> pd.DataFrame:
+    """Summary stats for a numeric target."""
+    s = pd.to_numeric(df[target_col], errors="coerce")
+    return s.describe(percentiles=[0.05, 0.25, 0.5, 0.75, 0.95]).to_frame().T
 '''
     add_code(nb, helpers, hide_input=False)
 
@@ -365,10 +421,8 @@ def numeric_table(df: pd.DataFrame, feature_name: str) -> pd.DataFrame:
         add_md(nb, "_No categorical features selected._")
     else:
         for feat in features_categorical:
-            # 1) Plot cell
             add_md(nb, f"### Categorical: `{_esc(feat)}` — Plot")
             add_code(nb, f"plot_categorical(df, '{_esc(feat)}', top_n=30)")
-            # 2) Table cell
             add_md(nb, f"**Value Counts for `{_esc(feat)}`**")
             add_code(
                 nb,
@@ -392,10 +446,8 @@ def numeric_table(df: pd.DataFrame, feature_name: str) -> pd.DataFrame:
         add_md(nb, "_No numeric features selected._")
     else:
         for feat in features_numeric:
-            # 1) Plot cell
             add_md(nb, f"### Numeric: `{_esc(feat)}` — Histogram")
             add_code(nb, f"plot_numeric(df, '{_esc(feat)}', bins='auto')")
-            # 2) Table cell
             add_md(nb, f"**Summary for `{_esc(feat)}`**")
             add_code(
                 nb,
@@ -412,6 +464,145 @@ def numeric_table(df: pd.DataFrame, feature_name: str) -> pd.DataFrame:
                 )
             )
 
+    # ---------------- Target analysis (supports multiple targets) ----------------
+    add_section(nb, "Target analysis", anchor="target-analysis")
+    add_md(nb, "### Target analysis.")
+
+    # A) Target(s) summary cell — detects type per target, plots once, shows table
+    add_code(
+        nb,
+        textwrap.dedent(
+            f"""\
+            TARGET_COLS = {targets!r}  # list of target column names
+            if TARGET_COLS:
+                import pandas as pd
+                from IPython.display import display
+                TC_numerical = []
+                TC_catagorical = []
+
+                for TARGET_COL in TARGET_COLS:
+                    if TARGET_COL not in df.columns:
+                        print("Target '" + str(TARGET_COL) + "' not found in dataframe; skipping.")
+                        continue
+                    if pd.api.types.is_numeric_dtype(df[TARGET_COL]):
+                        TC_numerical.append(TARGET_COL)
+                        # Numeric target — plot + stats table
+                        plot_target_numeric(df, TARGET_COL, bins="auto")
+                        _ttbl = target_numeric_table(df, TARGET_COL)
+                        try:
+                            display(_ttbl)
+                        except Exception:
+                            print(_ttbl.to_string(index=False))
+                        del _ttbl
+
+                        # Outlier report (IQR) for numeric target (NO PLOTS)
+                        _s = pd.to_numeric(df[TARGET_COL], errors="coerce").dropna()
+                        if not _s.empty:
+                            _q1, _q3 = _s.quantile(0.25), _s.quantile(0.75)
+                            _iqr = _q3 - _q1
+                            _lo = _q1 - 1.5 * _iqr
+                            _hi = _q3 + 1.5 * _iqr
+                            _n = _s.size
+                            _nout = int(((_s < _lo) | (_s > _hi)).sum())
+                            _pct = round((_nout / _n) * 100.0, 2) if _n else 0.0
+                            _orep = pd.DataFrame({{
+                                "q1": [_q1], "q3": [_q3], "iqr": [_iqr],
+                                "lower_fence": [_lo], "upper_fence": [_hi],
+                                "n": [_n], "n_outliers": [_nout], "pct_outliers": [_pct]
+                            }})
+                            try:
+                                display(_orep)
+                            except Exception:
+                                print(_orep.to_string(index=False))
+                            _rec = "Consider capping/winsorizing at the IQR fences" if _pct >= 1.0 else "Outliers are minimal; usually safe to keep."
+                            _skew = float(_s.skew()) if _n else 0.0
+                            if abs(_skew) > 1.0:
+                                _rec += "; distribution is skewed (skew=" + ("%.2f" % _skew) + "), you may also try a log/Box-Cox transform."
+                            print("Outlayers to be handled...... " + _rec)
+                            del _s, _q1, _q3, _iqr, _lo, _hi, _n, _nout, _pct, _orep, _rec, _skew
+                        else:
+                            print("No numeric data available for outlier check on target.")
+
+                    else:
+                        TC_catagorical.append(TARGET_COL)
+                        # Categorical target — plot + counts/percent table
+                        plot_target_categorical(df, TARGET_COL, top_n=30)
+                        _ctbl = target_categorical_table(df, TARGET_COL)
+                        try:
+                            display(_ctbl)
+                        except Exception:
+                            print(_ctbl.to_string(index=False))
+                        del _ctbl
+
+                print("TC_numerical:", TC_numerical)
+                print("TC_catagorical:", TC_catagorical)
+            else:
+                print("No target specified (or not found).")
+            """
+        ).strip()
+    )
+
+    # B) Target imbalance report (NO PLOTS) — only for categorical targets
+    add_code(
+        nb,
+        textwrap.dedent(
+            f"""\
+            # Target imbalance report: compute % distribution and flag minorities (<25%)
+            TARGET_COLS = {targets!r}
+            if TARGET_COLS:
+                import pandas as pd
+                from IPython.display import display
+                minor_threshold = 25.0
+                for TARGET_COL in TARGET_COLS:
+                    if TARGET_COL not in df.columns:
+                        continue
+                    if pd.api.types.is_numeric_dtype(df[TARGET_COL]):
+                        print("Imbalance check is only for categorical targets; numeric target '" + str(TARGET_COL) + "' detected — skipping.")
+                        continue
+
+                    s = df[TARGET_COL].astype("object").where(~pd.isna(df[TARGET_COL]), other=SAFE_NA)
+                    counts = s.value_counts(dropna=False)
+                    perc = (counts / counts.sum() * 100.0).round(2)
+                    rep = pd.DataFrame({{"count": counts, "percent": perc}})
+                    rep.index.name = TARGET_COL
+                    rep["minority_flag"] = rep["percent"] < minor_threshold
+                    try:
+                        display(rep)
+                    except Exception:
+                        print(rep.to_string())
+
+                    mins = rep[rep["minority_flag"]]
+                    for idx, row in mins.iterrows():
+                        print("Minority class in target " + str(TARGET_COL) + " -> '" + str(idx) + "': " + str(row['percent']) + "% — consider using SMOTE to balance.")
+                    del s, counts, perc, rep, mins
+            else:
+                print("No target specified (or not found).")
+            """
+        ).strip()
+    )
+
+    # ---------------- Duplicate Rows Check ----------------
+    add_section(nb, "Duplicate Rows", anchor="duplicates")
+    add_code(
+        nb,
+        textwrap.dedent(
+            """
+            # Duplicate rows check (does not modify df)
+            import pandas as pd
+            orig_shape = df.shape
+            dup_count = int(df.duplicated(keep='first').sum())
+            if dup_count == 0:
+                print("No duplicate records found.")
+                print("Current shape:", orig_shape)
+            else:
+                print(f"{dup_count} - duplicate / identical rows, to be deleted .....to avoid data leakage and biased training/validation splits in modelling.")
+                print("Current shape:", orig_shape)
+                preview_shape = (orig_shape[0] - dup_count, orig_shape[1])
+                print("Shape after removing duplicates (preview):", preview_shape)
+            """
+        ).strip()
+    )
+
     # ---------------- Notes ----------------
     add_section(nb, "Notes", anchor="notes")
     add_md(nb, textwrap.dedent(
@@ -422,6 +613,9 @@ def numeric_table(df: pd.DataFrame, feature_name: str) -> pd.DataFrame:
         - For very long-tail categoricals, consider grouping infrequent classes as "Other".
         """
     ))
+
+    # Closing action-reminder cell
+    add_md(nb, "### Steps to do: Nan & empty cells imputation and further feature engineering to be done.")
 
     # ---------------- Write Notebook ----------------
     with open(output_path, "w", encoding="utf-8") as f:
@@ -437,23 +631,22 @@ def main():
     parser = argparse.ArgumentParser(description="Hypersonic EDA notebook builder")
     parser.add_argument("--input", required=True, help="CSV/Parquet/SQLite .db (path or URL)")
     parser.add_argument("--table", default=None, help="Table name if input is SQLite DB (optional)")
-    parser.add_argument("--target", default=None, help="Target column (optional)")
+    parser.add_argument("--target", default=None, help="Target column(s) — separate multiple with comma or semicolon")
     parser.add_argument("--max-cat", type=int, default=30, help="Max categorical features to include")
     parser.add_argument("--max-num", type=int, default=30, help="Max numeric features to include")
     parser.add_argument("--output", default="eda.ipynb", help="Output notebook path (.ipynb)")
     args = parser.parse_args()
 
-    # Light preview load to infer types & pick feature lists
-    # (We try to use the same loader logic as the notebook's Data Loading cell.)
+    targets = _parse_targets(args.target)
 
+    # Light preview load to infer types & pick feature lists
     def load_preview(source: str, table: Optional[str]) -> pd.DataFrame:
         lower = source.lower()
         if lower.endswith(".csv"):
-            return pd.read_csv(source, nrows=50000)  # limit rows for speed
+            return pd.read_csv(source, nrows=50000)
         if lower.endswith(".parquet"):
             return pd.read_parquet(source)
         if lower.endswith(".db") or lower.endswith(".sqlite"):
-            # Support HTTP by downloading to temp
             db_path = source
             if _is_url(source):
                 try:
@@ -480,9 +673,7 @@ def main():
                     table_name = tables.iloc[0, 0]
                 else:
                     table_name = table
-                # Sample preview (limit)
                 return pd.read_sql_query(f'SELECT * FROM "{table_name}" LIMIT 100000;', conn)
-        # Fallback: try CSV
         return pd.read_csv(source, nrows=50000)
 
     # Load preview dataframe to infer types and choose features
@@ -494,15 +685,20 @@ def main():
 
     # Infer types
     cats, nums = infer_feature_types(df_preview, max_unique_for_categorical=40)
-
-    # De-prioritize massive-cardinality "categoricals"
     cats = [c for c in cats if df_preview[c].nunique(dropna=True) <= 1000]
 
-    # Remove target from lists to avoid duplication in sections (optional)
-    if args.target and args.target in cats:
-        cats.remove(args.target)
-    if args.target and args.target in nums:
-        nums.remove(args.target)
+    # Remove targets from lists to avoid duplication in sections (optional)
+    for t in targets:
+        if t in cats:
+            try:
+                cats.remove(t)
+            except ValueError:
+                pass
+        if t in nums:
+            try:
+                nums.remove(t)
+            except ValueError:
+                pass
 
     # Limit counts for cleanliness
     cats = cats[: args.max_cat]
@@ -512,7 +708,7 @@ def main():
     build_notebook(
         input_source=args.input,
         output_path=args.output,
-        target=args.target,
+        targets=targets,
         table=args.table,
         features_categorical=cats,
         features_numeric=nums,
