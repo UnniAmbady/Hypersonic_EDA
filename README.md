@@ -32,32 +32,32 @@ This installs a console command `hypersonic` and the `hypersonic` Python package
 
 ### Basic (CSV)
 ```bash
-hypersonic --input data/my_data.csv --output eda.ipynb
+hy --input data/my_data.csv --output eda.ipynb
 ```
 
 ### With a target column
 ```bash
-hypersonic --input data/my_data.csv --target "label" --output eda_label.ipynb
+hy --input data/my_data.csv --target "label" --output eda_label.ipynb
 ```
 
 ### Parquet
 ```bash
-hypersonic --input data/my_data.parquet --output eda_parquet.ipynb
+hy --input data/my_data.parquet --output eda_parquet.ipynb
 ```
 
 ### SQLite (.db), first table auto-detected
 ```bash
-hypersonic --input data/my_database.db --output eda_db.ipynb
+hy --input data/my_database.db --output eda_db.ipynb
 ```
 
 ### SQLite with a specific table
 ```bash
-hypersonic --input data/my_database.db --table events --output eda_events.ipynb
+hy --input data/my_database.db --table events --output eda_events.ipynb
 ```
 
 ### Remote files (HTTP/HTTPS)
 ```bash
-hypersonic --input "https://example.com/data.csv" --output eda_remote.ipynb
+hy --input "https://example.com/data.csv" --output eda_remote.ipynb
 ```
 
 ---
@@ -65,7 +65,7 @@ hypersonic --input "https://example.com/data.csv" --output eda_remote.ipynb
 ## Command-line Options
 
 ```bash
-hypersonic --help
+hy --help
 ```
 
 - `--input` (required): CSV/Parquet/SQLite .db (path or URL)
@@ -113,7 +113,7 @@ Use Hypersonic programmatically if you prefer.
 
 ```python
 import pandas as pd
-from hypersonic import notebook_builder as hnb
+from hypersonic-eda import hy as hnb
 
 # Infer feature types from a small preview (mimics CLI behavior)
 df = pd.read_csv("data/my_data.csv")
@@ -132,8 +132,8 @@ hnb.build_notebook(
 
 Or just call the CLI entrypoint from Python:
 ```python
-from hypersonic.notebook_builder import main
-# Emulates: hypersonic --input data.csv --output eda.ipynb
+from hypersonic.hy import main
+# Emulates: hy --input data.csv --output eda.ipynb
 main()
 ```
 
@@ -143,12 +143,12 @@ main()
 
 Create a notebook focused on a target, with more features:
 ```bash
-hypersonic --input data/train.csv --target Outcome --max-cat 50 --max-num 50 --output eda_outcome.ipynb
+hy --input data/train.csv --target Outcome --max-cat 50 --max-num 50 --output eda_outcome.ipynb
 ```
 
 Generate EDA for the first table in a remote SQLite DB:
 ```bash
-hypersonic --input "https://host/path/data.db" --output eda_db.ipynb
+hy --input "https://host/path/data.db" --output eda_db.ipynb
 ```
 
 ---
@@ -166,6 +166,8 @@ hypersonic --input "https://host/path/data.db" --output eda_db.ipynb
 - Extremely wide datasets (thousands of columns) will generate large notebooks—use `--max-cat/--max-num` to cap feature counts.
 - The default string cleaning is intentionally simple; adapt it in the notebook if your domain needs different rules.
 - Plots are basic on purpose—tune them to your style post-generation.
+- Do not use quotes in Target names
+- It does primitive typographic corrctions only in catagorical Text.
 
 ---
 
