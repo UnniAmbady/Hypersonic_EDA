@@ -1,5 +1,7 @@
 # Hypersonic — EDA Notebook Generator
 
+![Quick Start](img/QuickStart.jpg)
+
 **Build a complete Exploratory Data Analysis notebook in minutes.**  
 Data scientists and ML folks are often evaluated on their EDA chops—but wiring up the same scaffolding each time is repetitive. **Hypersonic** lets you quick-build a clean, structured Jupyter notebook so you can spend your time on **insights**, not boilerplate.
 
