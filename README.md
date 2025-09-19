@@ -24,7 +24,7 @@ Python **3.9+** recommended.
 pip install -e .
 ```
 
-This installs a console command `hypersonic` and the `hypersonic` Python package.
+This installs the console command `hy` and the `hypersonic` Python package (distribution name: `hypersonic-eda`).
 
 ---
 
@@ -112,31 +112,23 @@ hy --help
 Use Hypersonic programmatically if you prefer.
 
 ```python
-import pandas as pd
-from hypersonic-eda import hy as hnb
+## Call from Python (optional)
 
-# Infer feature types from a small preview (mimics CLI behavior)
-df = pd.read_csv("data/my_data.csv")
-cats, nums = hnb.infer_feature_types(df, max_unique_for_categorical=40)
+If you want to trigger the CLI from Python:
 
-# Build the notebook
-hnb.build_notebook(
-    input_source="data/my_data.csv",  # path or URL
-    output_path="eda.ipynb",
-    target=None,                      # or "label"
-    table=None,                       # set for SQLite
-    features_categorical=cats,
-    features_numeric=nums,
-)
+**A) Use `subprocess` (recommended)**
+```python
+import subprocess
+subprocess.run(["hy", "--input", "data/my_data.csv", "--output", "eda.ipynb"], check=True)
 ```
 
-Or just call the CLI entrypoint from Python:
+B) Or set `sys.argv` then call `main()`
 ```python
+import sys
 from hypersonic.hy import main
-# Emulates: hy --input data.csv --output eda.ipynb
+sys.argv = ["hy", "--input", "data/my_data.csv", "--output", "eda.ipynb"]
 main()
 ```
-
 ---
 
 ## Examples
