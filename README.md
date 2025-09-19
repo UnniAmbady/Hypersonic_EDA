@@ -110,10 +110,6 @@ hy --help
 ## Python API
 
 Use Hypersonic programmatically if you prefer.
-
-```python
-## Call from Python (optional)
-
 If you want to trigger the CLI from Python:
 
 **A) Use `subprocess` (recommended)**
