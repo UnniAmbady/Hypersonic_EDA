@@ -192,7 +192,7 @@ Please open an issue with a small sample dataset and the expected behavior.
 MIT © Krish Ambady
 
 ---
-<span style="color:red"><b>📌 Why Hypersonic-EDA?</b></span>
+## 📌 Why Hypersonic-EDA?</b></span>
 
 Most “auto-EDA” tools today (like YData-Profiling, Sweetviz, AutoViz, DataPrep.EDA) focus on generating static HTML reports or inside-notebook widgets. Those are useful for quick looks—but they don’t give you an editable, reproducible notebook you can extend with your own code.  
 
