@@ -190,3 +190,31 @@ Please open an issue with a small sample dataset and the expected behavior.
 ## License
 
 MIT © Krish Ambady
+
+---
+<span style="color:red"><b>📌 Why Hypersonic-EDA?</b></span>
+
+Most “auto-EDA” tools today (like YData-Profiling, Sweetviz, AutoViz, DataPrep.EDA) focus on generating static HTML reports or inside-notebook widgets. Those are useful for quick looks—but they don’t give you an editable, reproducible notebook you can extend with your own code.  
+
+**Hypersonic-EDA is different:** it’s a CLI tool that generates a structured Jupyter Notebook (`.ipynb`) with clear sections for loading, statistics, helper functions, and per-feature plots/tables. This means you don’t just *view* a report—you start with a clean, living notebook that you can immediately modify, annotate, and share.
+
+### Key Differentiators
+- **Notebook output, not HTML:** Produces an editable `.ipynb` scaffold with code + markdown.  
+- **Source flexibility:** Works with CSV, Parquet, and SQLite (local or HTTP URL, with auto-table detection).  
+- **Lightweight & CLI-friendly:** Just run `hy --input data.csv --output eda.ipynb`.  
+- **Built-in data hygiene:** Normalizes text columns and prompts you to check/correct categorical typos.  
+- **Balanced defaults:** Per-feature plots (categorical + numeric), summary stats, outlier counts, and a notes section ready for domain context.  
+
+### Comparison
+## 🔍 Comparison with Other Auto-EDA Tools
+
+| Feature / Tool        | Hypersonic-EDA | YData Profiling | Sweetviz | AutoViz | DataPrep.EDA |
+|------------------------|----------------|-----------------|----------|---------|--------------|
+| **Output format**      | **Jupyter Notebook** (`.ipynb`) scaffold | Static HTML/JSON report | Static HTML dashboard | Inline plots / notebook widget | Inline interactive plots |
+| **CLI usage**          | ✅ (`hy --input …`) | ❌ | ⚠️ (only via wrapper, HTML output) | ❌ | ❌ |
+| **Editable code**      | ✅ (full notebook you can extend) | ❌ | ❌ | Partial | Partial |
+| **Input sources**      | CSV, Parquet, SQLite (local/URL) | CSV, Parquet, DF | CSV, DF | CSV, DF | CSV, Parquet, DF |
+| **Typo/cleaning guidance** | ✅ text normalization + typo-check prompts | ❌ | ❌ | ❌ | ❌ |
+| **Target column aware** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Dependencies**       | Lightweight (`pandas`, `matplotlib`, `nbformat`, `requests`) | Heavier (`pandas`, `matplotlib`, `visions`, `phik`, …) | Moderate | Moderate | Moderate |
+
